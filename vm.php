@@ -124,29 +124,17 @@ $items = [
 	],
 ];
 
-function askFor(string $name): string
+processApplication($items);
+
+
+function printLine(string $msg): void
 {
-    echo $name;
-
-    $received = trim(fgets(STDIN));
-
-    return $received;
+    echo $msg;
 }
 
-function notify(string $message = null, bool $extra = false): void
+function getUserInput(): mixed
 {
-    if (isset($message)) {
-        echo $message;
-    }
-
-    if ($extra) {
-        echo PHP_EOL;
-    }
-}
-
-function checkArgument(string $argument): bool
-{
-    return (file_exists($argument) ? true : false);
+    return trim(fgets(STDIN));
 }
 
 function printReceipt(): void
@@ -173,72 +161,120 @@ function printReceipt(): void
     }
 }
 
-function processApplication(array $arguments, array $items): void
+function selectItem($items): array
 {
-    notify('Vending machine started.' . PHP_EOL, true);
-
-    if (isset($arguments[1]) && checkArgument($arguments[1])) {
-        $items = json_decode(file_get_contents($arguments[1]), true);
-
-        notify('Items list updated !' . PHP_EOL, true);
-    } else {
-        notify('No new items provided, continue with defaults.' . PHP_EOL, true);
-    }
+    $user_not_decided = true;
 
     do {
-        $row = askFor('Pick a row : ');
+        printLine('Pick a row : ');
 
-        $column = askFor('Pick a column : ');
+        $row = getUserInput();
 
-        notify(null, true);
+        printLine('Pick a column : ');
 
-        if (isset($items[$row][$column])) {
-            notify("Picked items is : {$items[$row][$column]['name']}" . PHP_EOL);
+        $column = getUserInput();
 
-            $confirmation = askFor('Choose another ? (y/n) ');
+        $item = $items[$row][$column] ?? null;
 
-            notify(null, true);
+        if (isset($item)) {
+            printLine(
+                sprintf(
+                    "You've picked %s, do you want to change it ?",
+                    $item['name']
+                    )
+            );
+
+            $confirmation = getUserInput();
 
             if ($confirmation === 'y') {
                 $user_not_decided = true;
             } elseif ($confirmation === 'n') {
                 $user_not_decided = false;
             } else {
-                notify('Unknown command, please pick again.' . PHP_EOL, true);
+                printLine('Unknown command, please pick again.' . PHP_EOL, true);
             }
         } else {
-            notify('Item not available, choose another one.' . PHP_EOL, true);
+            printLine('Item not available, choose another one.' . PHP_EOL, true);
 
             $user_not_decided = true;
         }
 
     } while ($user_not_decided);
+    return [];
+}
 
-    $confirmation = askFor("Pay {$items[$row][$column]['price']} ? (y/n) ");
-
-    notify(null, true);
-
-    if ($confirmation === 'n') {
-        notify('Hope to see you next time.');
-        exit;
-    }
-
+function payItem(): void
+{
     $payed = 0;
 
     do {
-        notify("Amount inserted : {$payed}", true);
+        printLine("Amount inserted : {$payed}", true);
 
-        $inserted = askFor("Insert money : ");
+        $inserted = getUserInput("Insert money : ");
 
         $payed += (int)$inserted;
     } while ($payed <= $items[$row][$column]['price']);
+}
 
-    notify('Thank you for your purchase.', true);
-    notify('Please wait for your selection...' . PHP_EOL, true);
+function updateItems(): mixed
+{
+    printLine(sprintf("Do you want to update items ? %s", PHP_EOL));
+
+    $response = getUserInput();
+
+    if (strtolower($response) !== 'y') {
+        return false;
+    }
+
+    printLine(sprintf("Enter path to the items : %s", PHP_EOL));
+
+    $items_path = getUserInput();
+
+    if (!file_exists($items_path)) {
+        printLine(
+            sprintf("Items not found under path: %s %s", $items_path, PHP_EOL)
+        );
+
+        return false;
+    }
+
+    if (!$items = file_get_contents($items_path)) {
+        printLine(sprintf("Could not read items content. %s", PHP_EOL));
+
+        return false;
+    };
+
+    $items = json_decode($items, true, JSON_ERROR_SYNTAX);
+    
+    if (json_last_error() === JSON_ERROR_SYNTAX) {
+        printLine(sprintf("Error occured while decoding the JSON. %s", PHP_EOL));
+
+        return false;
+    }
+
+    return $items;
+}
+
+function processApplication(array $items): void
+{
+    printLine(sprintf("Vending machine started.%s", PHP_EOL));
+
+    if (($returned_items = updateItems()) === false) {
+        printLine(sprintf("Will continue with default items. %s", PHP_EOL));
+    }
+
+    $items = ($returned_items !== false ? $returned_items : $items);
+
+    selectItem($items);
+
+    payItem();
+
+    printLine('Thank you for your purchase.', true);
+    printLine('Please wait for your selection...' . PHP_EOL, true);
 
     sleep(2);
 
-    notify("Take your receipt." . PHP_EOL, true);
+    printLine("Take your receipt." . PHP_EOL, true);
 
     printReceipt(
         $items[$row][$column]['name'],
@@ -246,5 +282,3 @@ function processApplication(array $arguments, array $items): void
         (string)$payed,
         (string)($payed - $items[$row][$column]['price']));
 }
-
-processApplication($argv, $items);
