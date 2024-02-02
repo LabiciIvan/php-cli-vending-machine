@@ -12,156 +12,178 @@ declare(strict_types=1);
 namespace Machine\Vending;
 
 $items = [
-	"A" => [
-		[
-			'name' => 'Coca Cola',
-			'price' => '20',
-		],
-		[
-			'name' => 'Coca Zero',
-			'price' => '10.99',
-		],
-		[
-			'name' => 'Sprite',
-			'price' => '10.80',
-		],
-		[
-			'name' => 'Fanta',
-			'price' => '11.90',
-		],
-		[
-			'name' => 'Pepsi',
-			'price' => '22.05',
-		],
-	],
-	'B' => [
-		[
-			'name' => 'Snickers',
-			'price' => '21.20',
-		],
-		[
-			'name' => 'Chocolate Bar',
-			'price' => '15.99',
-		],
-		[
-			'name' => 'Mars',
-			'price' => '17.88',
-		],
-		[
-			'name' => 'Cotton Candy',
-			'price' => '16.50',
-		],
-		[
-			'name' => 'Lion bar',
-			'price' => '20.01',
-		],
-	],
-	'C' => [
-		[
-			'name' => 'Lays Chips',
-			'price' => '20',
-		],
-		[
-			'name' => 'Chop Chips',
-			'price' => '10.99',
-		],
-		[
-			'name' => 'Pop Corn',
-			'price' => '10.66',
-		],
-		[
-			'name' => 'Salted Chips',
-			'price' => '22.20',
-		],
-		[
-			'name' => 'Salted Rice Cakes',
-			'price' => '10.99',
-		],
-	],
-	'D' => [
-		[
-			'name' => 'Expresso',
-			'price' => '5',
-		],
-		[
-			'name' => 'Machiato',
-			'price' => '3.99',
-		],
-		[
-			'name' => 'Latte Coffe',
-			'price' => '4.99',
-		],
-		[
-			'name' => 'Americano',
-			'price' => '2.89',
-		],
-		[
-			'name' => 'Double Expresso',
-			'price' => '5.99',
-		],
-	],
-	'E' => [
-		[
-			'name' => 'Fruits Tea',
-			'price' => '11.99',
-		],
-		[
-			'name' => 'Ice Tea Lemon',
-			'price' => '11.59',
-		],
-		[
-			'name' => 'Lemon Tea',
-			'price' => '11.80',
-		],
-		[
-			'name' => 'Black Tea',
-			'price' => '12.99',
-		],
-		[
-			'name' => 'Black Ice Tea',
-			'price' => '12.50',
-		],
-	],
+    "A" => [
+        [
+            'name' => 'Coca Cola',
+            'price' => '20',
+        ],
+        [
+            'name' => 'Coca Zero',
+            'price' => '10.99',
+        ],
+        [
+            'name' => 'Sprite',
+            'price' => '10.80',
+        ],
+        [
+            'name' => 'Fanta',
+            'price' => '11.90',
+        ],
+        [
+            'name' => 'Pepsi',
+            'price' => '22.05',
+        ],
+    ],
+    'B' => [
+        [
+            'name' => 'Snickers',
+            'price' => '21.20',
+        ],
+        [
+            'name' => 'Chocolate Bar',
+            'price' => '15.99',
+        ],
+        [
+            'name' => 'Mars',
+            'price' => '17.88',
+        ],
+        [
+            'name' => 'Cotton Candy',
+            'price' => '16.50',
+        ],
+        [
+            'name' => 'Lion bar',
+            'price' => '20.01',
+        ],
+    ],
+    'C' => [
+        [
+        	'name' => 'Lays Chips',
+        	'price' => '20',
+        ],
+        [
+        	'name' => 'Chop Chips',
+        	'price' => '10.99',
+        ],
+        [
+        	'name' => 'Pop Corn',
+        	'price' => '10.66',
+        ],
+        [
+        	'name' => 'Salted Chips',
+        	'price' => '22.20',
+        ],
+        [
+        	'name' => 'Salted Rice Cakes',
+        	'price' => '10.99',
+        ],
+    ],
+    'D' => [
+        [
+            'name' => 'Expresso',
+            'price' => '5',
+        ],
+        [
+            'name' => 'Machiato',
+            'price' => '3.99',
+        ],
+        [
+            'name' => 'Latte Coffe',
+            'price' => '4.99',
+        ],
+        [
+            'name' => 'Americano',
+            'price' => '2.89',
+        ],
+        [
+            'name' => 'Double Expresso',
+            'price' => '5.99',
+        ],
+    ],
+    'E' => [
+        [
+            'name' => 'Fruits Tea',
+            'price' => '11.99',
+        ],
+        [
+            'name' => 'Ice Tea Lemon',
+            'price' => '11.59',
+        ],
+        [
+            'name' => 'Lemon Tea',
+            'price' => '11.80',
+        ],
+        [
+            'name' => 'Black Tea',
+            'price' => '12.99',
+        ],
+        [
+            'name' => 'Black Ice Tea',
+            'price' => '12.50',
+        ],
+    ]
 ];
-
 processApplication($items);
 
 function printLine(string $msg): void
 {
-    echo $msg;
+    echo $msg . PHP_EOL;
 }
 
-function getUserInput(): mixed
+function getUserInput(): ?string
 {
-    return trim(fgets(STDIN));
+    $input = fgets(STDIN);
+
+    return $input === false ? null : trim($input);
 }
 
-function updateItems(): mixed
+function updateItems(): ?array
 {
-    printLine(sprintf("Do you want to update items ? %s", PHP_EOL));
+    $answers = [
+        'y' => 1,
+        'n' => 0,
+    ];
 
-    $response = getUserInput();
+    $answering = true;
 
-    if (strtolower($response) !== 'y') {
-        return false;
+    do {
+        printLine('Update items list?');
+
+        printLine('(y = YES | n = NO)');
+
+        $decision = getUserInput();
+
+        if (!isset($answers[strtolower($decision)])) {
+            printLine('Unknown answer!');
+            continue;
+        }
+
+        $answering = false;
+
+    } while ($answering);
+
+
+
+    if (strtolower($decision) === 'n') {
+        return null;
     }
 
-    printLine(sprintf("Enter path to the items : %s", PHP_EOL));
+    printLine("Path to read items:");
 
     $items_path = getUserInput();
 
     if (!file_exists($items_path)) {
         printLine(
-            sprintf("Items not found under path: %s %s", $items_path, PHP_EOL)
+            sprintf("Items not found under path:%s", $items_path)
         );
 
-        return false;
+        return null;
     }
 
     if (!$items = file_get_contents($items_path)) {
-        printLine(sprintf("Could not read items content. %s", PHP_EOL));
+        printLine(sprintf("Could not read items content."));
 
-        return false;
+        return null;
     };
 
     $items = json_decode($items, true, JSON_ERROR_SYNTAX);
@@ -169,7 +191,7 @@ function updateItems(): mixed
     if (json_last_error() === JSON_ERROR_SYNTAX) {
         printLine(sprintf("Error occured while decoding the JSON. %s", PHP_EOL));
 
-        return false;
+        return null;
     }
 
     return $items;
@@ -266,11 +288,13 @@ function processApplication(array $items): void
 {
     printLine(sprintf("Vending machine started.%s", PHP_EOL));
 
-    if (($returned_items = updateItems()) === false) {
-        printLine(sprintf("Will continue with default items. %s", PHP_EOL));
+    $returned_items = updateItems();
+
+    if (!isset($returned_items)) {
+        printLine('Will continue with default items.');
     }
 
-    $items = ($returned_items !== false ? $returned_items : $items);
+    $items = $returned_items ?? $items;
 
     $item = selectItem($items);
 
