@@ -129,16 +129,45 @@ const ITEMS = [
 
 processApplication(ITEMS);
 
+function processApplication(array $items): void
+{
+    printLine('Vending machine started.');
+
+    $items_updated = updateItems();
+
+    $items = $items_updated ?? $items;
+
+    while (true) {
+        printLine('Welcome!');
+
+        $item = selectItem($items);
+
+        if (!keepItemOrChange($item['name'])) {
+            continue;
+        }
+
+        $receipt = payItem($item['name'], $item['price']);
+
+        try {
+            printReceipt(
+                [
+                    'name' => $item['name'],
+                    'cost' => $item['price'],
+                    'payed' => $receipt['payed'],
+                    'change' => $receipt['change'],
+                ],
+                20
+            );
+        } catch (Exception $e) {
+            printLine($e->getMessage());
+            exit;
+        }
+    }
+}
+
 function printLine(string $msg): void
 {
     echo $msg . PHP_EOL;
-}
-
-function getUserInput(): ?string
-{
-    $input = fgets(STDIN);
-
-    return $input === false ? null : trim($input);
 }
 
 function updateItems(): ?array
@@ -220,51 +249,119 @@ function updateItems(): ?array
     return $items;
 }
 
-function selectItem(array $items): ?array
+function selectItem(array $items): array
 {
-    $keepLoop = true;
+    $keyPosition = 0;
+    $keys = array_keys($items);
 
-    while ($keepLoop) {
+    $controls = [
+        '>' => 'NEXT',
+        '<' => 'BACK',
+    ];
+
+    while (true) {
+        $row = $keys[$keyPosition];
+
         printLine('Pick an item.');
 
-        printLine('Insert row:');
+        displayItems($items[$row], $row, 20);
 
-        $row = getUserInput();
+        printLine(sprintf('| > = NEXT | < = BACK | %s0, %s1 = ITEM |', $row, $row));
 
-        printLine('Insert column:');
+        $userAction = getUserInput();
 
-        $column = getUserInput();
+        $isControl = (strlen($userAction) === 1 ? true : false);
 
-        $item = $items[$row][$column] ?? null;
+        $isItem = !$isControl;
 
-        if (!isset($item)) {
-            while ($keepLoop) {
-                printLine('Item not available!');
-
-                printLine('Pick another?');
-
-                printLine('[y = yes | n = exit]');
-
-                $decision = getUserInput();
-
-                if (!isset(ANSWERS[strtolower($decision)])) {
-                    printLine('Unknown command!');
-                    continue;
-                }
-
-                if (strtolower($decision) === 'n') {
-                    printLine('See you later.');
-                    return null;
-                }
-
-                break;
-            }
+        if ($isControl && !isset($controls[$userAction])) {
+            printLine('Unknown command!');
             continue;
         }
-        break;
+
+        if ($isControl) {
+            $lastKeyPosition = count($keys) - 1;
+            switch ($controls[$userAction]) {
+                case 'NEXT':
+                    $keyPosition = ($keyPosition === $lastKeyPosition ? 0 : ++$keyPosition);
+                    break;
+
+                case 'BACK':
+                    $keyPosition = ($keyPosition === 0 ? $lastKeyPosition : --$keyPosition);
+                    break;
+            }
+
+            continue;
+        }
+
+        if ($isItem) {
+            list($itemRow, $itemColumn) = str_split($userAction, 1);
+
+            if (!isset($items[$itemRow][$itemColumn]) || (strlen($userAction) > 2)) {
+                printLine('Item not found!');
+                continue;
+            }
+
+            return $items[$itemRow][$itemColumn];
+        }
+    }
+}
+
+function displayItems(array $items, string $row, int $width): void
+{
+    $topandBottom = '+' . str_repeat('-', $width) . '+';
+
+    $screen = $topandBottom . PHP_EOL;
+
+    $itemsLength = count($items);
+    $rowLength = strlen($row);
+
+    for ($i = 0; $i < $itemsLength; ++$i) {
+        $itemName = $items[$i]['name'];
+        $nameLength = strlen($itemName);
+        $fill = ($width > $nameLength + $rowLength + 2 ? ($width - ($nameLength + $rowLength + 2)) : 0);
+        $chopOff = 0;
+
+        if ($width < $nameLength + $rowLength + 2) {
+            $chopOff = $nameLength - (($nameLength + $rowLength + 2) - $width);
+            $itemName = substr($itemName, 0, $chopOff);
+        }
+
+        $screen .= '|' . $row . '.' . $i . $itemName . str_repeat(' ', $fill) . '|' . PHP_EOL;
     }
 
-    return $item;
+    $screen .= $topandBottom . PHP_EOL;
+
+    printLine($screen);
+}
+
+function keepItemOrChange(string $itemName): bool
+{
+    while (true) {
+        printLine(sprintf('You picked: %s.', $itemName));
+        printLine('Keep it?');
+        printLine('| y = yes | n = no |');
+
+        $willKeep = getUserInput();
+
+        if (!isset(ANSWERS[$willKeep])) {
+            printLine('Unknown command!');
+            continue;
+        }
+
+        if ($willKeep === 'y') {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+function getUserInput(): ?string
+{
+    $input = fgets(STDIN);
+
+    return $input === false ? null : trim($input);
 }
 
 /**
@@ -354,146 +451,4 @@ function printReceipt($receipt, $width = 50): void {
     }
 
     printLine($receiptMessage);
-}
-
-function displayItems(array $items, string $row, int $width): void
-{
-    $topandBottom = '+' . str_repeat('-', $width) . '+';
-
-    $screen = $topandBottom . PHP_EOL;
-
-    $itemsLength = count($items);
-    $rowLength = strlen($row);
-
-    for ($i = 0; $i < $itemsLength; ++$i) {
-        $itemName = $items[$i]['name'];
-        $nameLength = strlen($itemName);
-        $fill = ($width > $nameLength + $rowLength + 2 ? ($width - ($nameLength + $rowLength + 2)) : 0);
-        $chopOff = 0;
-
-        if ($width < $nameLength + $rowLength + 2) {
-            $chopOff = $nameLength - (($nameLength + $rowLength + 2) - $width);
-            $itemName = substr($itemName, 0, $chopOff);
-        }
-
-        $screen .= '|' . $row . '.' . $i . $itemName . str_repeat(' ', $fill) . '|' . PHP_EOL;
-    }
-
-    $screen .= $topandBottom . PHP_EOL;
-
-    printLine($screen);
-}
-
-function screenItems(array $items): void
-{
-    $allKeys = array_keys($items);
-    $i = 0;
-    
-    $commandsItems = [
-        '>' => 'NEXT',
-        '<' => 'PREVIOUS',
-        'q' => 'QUIT',
-    ];
-
-    $continue = true;
-    
-    while ($continue) {
-        $key = $allKeys[$i];
-
-        displayItems($items[$key], $key, 20);
-
-        printLine('[ > = NEXT | < = PREVIOUS | q = CANCEL ]');
-
-        $choice = getUserInput();
-    
-        if (!isset($commandsItems[$choice])) {
-            printLine('Unknown command.');
-            continue;
-        }
-
-        switch ($commandsItems[$choice]) {
-            case 'NEXT':
-                $i = ($i === count($allKeys) - 1 ? 0 : ++$i);
-                break;
-            case 'PREVIOUS':
-                $i = ($i === 0 ? count($allKeys) - 1 : --$i);
-                break;
-            case 'QUIT':
-                $continue = false;
-                break;
-        }
-    }
-}
-
-function processApplication(array $items): void
-{
-    $turnOn = true;
-
-    printLine('Vending machine started.');
-
-    $items_updated = updateItems();
-
-    $items = $items_updated ?? $items;
-
-    while ($turnOn) {
-        $toPayment = false;
-
-        printLine('Welcome!');
-        printLine('Press any key to start.');
-
-        getUserInput();
-
-        $loopTwo = true;
-
-        while ($loopTwo) {
-            screenItems($items);
-
-            $item = selectItem($items);
-
-            if ($item === null) {
-                break;
-            }
-
-            printLine(sprintf('You\'ve picked:%s', $item['name']));
-
-            while ($turnOn) {
-                printLine(sprintf('Change item %s?', $item['name']));
-                printLine('[y = yes | n = no]:');
-
-                $decision = getUserInput();
-
-                if (!isset(ANSWERS[strtolower($decision)])) {
-                    printLine('Unknown command!');
-                    continue;
-                }
-
-                if (strtolower($decision) === 'n') {
-                    $loopTwo = false;
-                    $toPayment = true;
-                    break;
-                }
-
-                break;
-            }
-        }
-
-        if ($toPayment) {
-            $receipt = payItem($item['name'], $item['price']);
-
-            try {
-                printReceipt(
-                    [
-                        'name' => $item['name'],
-                        'cost' => $item['price'],
-                        'payed' => $receipt['payed'],
-                        'change' => $receipt['change'],
-                    ],
-                    20
-                );
-            } catch (Exception $e) {
-                printLine($e->getMessage());
-                exit;
-            }
-        }
-    }
 }
