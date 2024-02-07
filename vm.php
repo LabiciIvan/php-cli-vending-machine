@@ -133,9 +133,9 @@ function processApplication(array $items): void
 {
     printLine('Vending machine started.');
 
-    $items_updated = updateItems();
+    $itemsUpdated = updateItems();
 
-    $items = $items_updated ?? $items;
+    $items = $itemsUpdated ?? $items;
 
     while (true) {
         printLine('Welcome!');
@@ -146,14 +146,14 @@ function processApplication(array $items): void
             continue;
         }
 
-        $receipt = payItem($item['name'], $item['price']);
+        $receipt = payment($item['name'], (int)$item['price']);
 
         try {
             printReceipt(
                 [
                     'name' => $item['name'],
                     'cost' => $item['price'],
-                    'payed' => $receipt['payed'],
+                    'paid' => $receipt['paid'],
                     'change' => $receipt['change'],
                 ],
                 20
@@ -209,9 +209,9 @@ function updateItems(): ?array
             printLine('Try again?');
 
             printLine('[y = yes | n = no]:');
-    
+
             $decision = getUserInput();
-    
+
             if (!isset(ANSWERS[strtolower($decision)])) {
                 printLine('Unknown command!');
                 continue;
@@ -309,30 +309,27 @@ function selectItem(array $items): array
 
 function displayItems(array $items, string $row, int $width): void
 {
-    $topandBottom = '+' . str_repeat('-', $width) . '+';
+    $square = $lineTopBottom = sprintf('+%s+%s', str_repeat('-', $width), PHP_EOL);
 
-    $screen = $topandBottom . PHP_EOL;
+    $lengthItems = count($items);
+    $lengthRowColumnSpace = 5;
 
-    $itemsLength = count($items);
-    $rowLength = strlen($row);
-
-    for ($i = 0; $i < $itemsLength; ++$i) {
+    for ($i = 0; $i < $lengthItems; ++$i) {
         $itemName = $items[$i]['name'];
-        $nameLength = strlen($itemName);
-        $fill = ($width > $nameLength + $rowLength + 2 ? ($width - ($nameLength + $rowLength + 2)) : 0);
-        $chopOff = 0;
+        $lengthSpacing = strlen($itemName) + $lengthRowColumnSpace;
+        $filler = ($width > $lengthSpacing ? $width - $lengthSpacing : 0);
 
-        if ($width < $nameLength + $rowLength + 2) {
-            $chopOff = $nameLength - (($nameLength + $rowLength + 2) - $width);
-            $itemName = substr($itemName, 0, $chopOff);
+        if ($lengthSpacing > $width) {
+            $nameWidth = $width - $lengthRowColumnSpace;
+            $itemName = substr($itemName, 0, $nameWidth);
         }
 
-        $screen .= '|' . $row . '.' . $i . $itemName . str_repeat(' ', $fill) . '|' . PHP_EOL;
+        $square .= sprintf('| %s.%s %s%s|%s', $row, $i, $itemName, str_repeat(' ', $filler), PHP_EOL);
     }
 
-    $screen .= $topandBottom . PHP_EOL;
+    $square .= $lineTopBottom . PHP_EOL;
 
-    printLine($screen);
+    printLine($square);
 }
 
 function keepItemOrChange(string $itemName): bool
@@ -365,90 +362,80 @@ function getUserInput(): ?string
 }
 
 /**
- * @return array{payed:string,change:string}
+ * @return array{paid:string,change:string}
  */
-function payItem(string $itemName, string $itemPrice): array
+function payment(string $itemName, int $itemPrice): array
 {
-    $amountInserted = 0;
+    $paid = 0;
+    $acceptedAmount = array_flip(['10', '20', '50']);
 
-    $allowedAmounts = [
-        '5' => '5',
-        '10' => '10',
-        '50' => '50',
-    ];
-
-    while ($amountInserted < $itemPrice) {
-        printLine(sprintf('Item: %s costs: %s', $itemName, $itemPrice));
-        printLine(sprintf('Amount inserted: %s', $amountInserted));
+    while ($itemPrice > $paid) {
+        printLine(sprintf('%s is $%s.', $itemName, $itemPrice));
+        printLine(sprintf('Credit: %s.', $paid));
         printLine('Insert amount:');
 
         $amount = getUserInput();
 
-        if (!isset($allowedAmounts[$amount])) {
-            printLine('Accepted bills:');
-            foreach ($allowedAmounts as $money) {
-                printLine($money);
-            }
+        if (!isset($acceptedAmount[$amount])) {
+            printLine(sprintf('Accepted amounts: %s', implode(', ', array_keys($acceptedAmount))));
             continue;
         }
 
-        $amountInserted += $amount;
+        $paid += $amount;
     }
 
-    $amountRemained = $amountInserted - $itemPrice;
+    $change = $paid - $itemPrice;
 
     return [
-        'payed' => (string)$amountInserted,
-        'change' => number_format($amountRemained, 2, '.'),
+        'paid' => number_format($paid, 2, '.'),
+        'change' => number_format($change, 2, '.'),
     ];
 }
 
 /**
- * @param array{name:string,cost:string,payed:string,change:string} $receipt
+ * @param array{name:string,cost:string,paid:string,change:string} $receipt
+ * @throws RuntimeException If a field is missing or too short space for field value
  */
-function printReceipt($receipt, $width = 50): void {
+function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): void
+{
+    $error = [];
+    $receiptFields = array_flip(['name', 'cost', 'paid', 'change']);
 
-    $error = false;
-
-    $errorMessage = '';
-
-    $receiptFields = [
-        'name' => 'name',
-        'cost' => 'cost',
-        'payed' => 'payed',
-        'change' => 'change',
-    ];
-
-    foreach ($receiptFields as $field) {
+    foreach ($receiptFields as $field => $value) {
         if (!isset($receipt[$field])) {
-            $errorMessage .= $field . ', ';
-            $error = true;
+            $error[] = $field;
         }
     }
 
     if ($error) {
-        throw new RuntimeException("Error Processing receipt, fields: " . $errorMessage .'must be present in receipt.');
-        exit;
+        $fields = implode(', ', array_keys(array_flip($error)));
+        throw new RuntimeException(sprintf('Missing receipt fields: %s.', $fields));
     }
 
-    $receiptMessage = '';
+    $receipt = array_intersect_key($receipt, $receiptFields);
 
-    foreach ($receiptFields as $field) {
-        $value = $receipt[$field];
-        $name = $field;
-        $separationLength = 3;
+    $receiptOutput = '';
 
-        $nameAndValue = strlen($name) + strlen($value);
+    foreach ($receipt as $field => $value) {
+        $repeat = $minDistance;
+        $lengthDistanceField = strlen($field) + $minDistance;
+        $lengtFieldDistanceValue = strlen($field) + $minDistance + strlen($value);
 
-        if ($nameAndValue > ($width - $separationLength)) {
-            $substractFromValue = $width - ($nameAndValue + $separationLength);
-            $value = substr($value, 0, $substractFromValue);
+        if ($lengthDistanceField >= $width) {
+            throw new RuntimeException(sprintf('Not enought room for field\'s `%s` value.', $field));
         }
 
-        $timesRepeat = $width - (strlen($name) +  strlen($value));
+        if ($lengtFieldDistanceValue < $width) {
+            $repeat = $minDistance + ($width - $lengtFieldDistanceValue);
+        }
 
-        $receiptMessage .= $name . str_repeat('.', $timesRepeat) . $value . PHP_EOL;
+        if ($lengtFieldDistanceValue > $width) {
+            $shortenValue = $width - $lengthDistanceField;
+            $value = substr($value, 0, $shortenValue);
+        }
+
+        $receiptOutput .= sprintf('%s%s%s%s', $field, str_repeat('.', $repeat), $value, PHP_EOL);
     }
 
-    printLine($receiptMessage);
+    printLine($receiptOutput);
 }
