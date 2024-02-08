@@ -172,81 +172,77 @@ function printLine(string $msg): void
 
 function updateItems(): ?array
 {
-    $answering = true;
-
-    while ($answering) {
+    while (true) {
         printLine('Update items list?');
 
-        printLine('[y = yes | n = no]:');
+        printLine('| y = yes | n = no |');
 
-        $decision = getUserInput();
+        $isUpdating = getUserInput();
 
-        if (!isset(ANSWERS[strtolower($decision)])) {
+        if (!isset($isUpdating)) {
             printLine('Unknown command!');
             continue;
         }
 
-        break;
-    }
-
-    if (strtolower($decision) === 'n') {
-        printLine('Items not updated.');
-        return null;
-    }
-
-    while ($answering) {
-        printLine('Insert path to items:');
-
-        $path = getUserInput();
-
-        if ($path && file_exists($path)) {
+        if ($isUpdating === 'n') {
             break;
         }
 
-        printLine('Items not found!');
+        printLine('Insert path to items:');
 
-        while ($answering) {
-            printLine('Try again?');
+        $pathToItems = getUserInput();
 
-            printLine('[y = yes | n = no]:');
+        if (!file_exists($pathToItems)) {
+            printLine('No items not found!');
+            continue;
+        }
 
-            $decision = getUserInput();
+        $items = file_get_contents($pathToItems, true);
 
-            if (!isset(ANSWERS[strtolower($decision)])) {
-                printLine('Unknown command!');
-                continue;
+        if ($items === false) {
+            printLine('Can\'t read items.');
+            continue;
+        };
+
+        try {
+            $items = json_decode($items, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            printLine(sprintf('Error occurred: %s', $e->getMessage()));
+            continue;
+        }
+
+        printLine('Items updated.');
+
+        return $items;
+    }
+
+    printLine('Items not updated.');
+
+    return null;
+}
+
+function validateItems(array $items): ?string
+{
+    $startLetter = ord('A');
+    $endLetter = ord('Z');
+
+    $rows = [];
+
+    $rows = array_flip(array_map('chr', range($startLetter, $endLetter)));
+
+    foreach ($items as $row => $columns) {
+        if (!isset($rows[$row])) {
+            return 'Items array should consist of keys with Letters from A-Z and each key should be an array.';
+        }
+
+        foreach ($columns as  $items) {
+            if (!is_array($items) || !isset($items['name'], $items['price'])) {
+                return 'Each column should be an array of items, and each item should have `name` and `price` keys.';
             }
-
-            if (strtolower($decision) === 'y') {
-                break;
-            }
-
-            printLine('Items not updated.');
-
-            return null;
         }
     }
 
-    $items = file_get_contents($path, true);
-
-    if ($items === false) {
-        printLine('Can\'t read items.');
-        return null;
-    };
-
-    try {
-        $items = json_decode($items, true, 512, JSON_THROW_ON_ERROR);
-    } catch (JsonException $e) {
-        printLine('An error occurred:');
-
-        printLine($e->getMessage());
-
-        return null;
-    }
-
-    printLine('Items updated.');
-
-    return $items;
+    return null;
 }
 
 function selectItem(array $items): array
