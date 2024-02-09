@@ -15,7 +15,7 @@ const ANSWERS = [
 ];
 
 const ITEMS = [
-    "A" => [
+    'A' => [
         [
             'name' => 'Coca Cola',
             'price' => '20',
@@ -142,11 +142,11 @@ function processApplication(array $items): void
 
         $item = selectItem($items);
 
-        if (!keepItemOrChange($item['name'])) {
+        if (!confirmSelectedItem($item['name'])) {
             continue;
         }
 
-        $receipt = payment($item['name'], (int)$item['price']);
+        $receipt = pay($item['name'], (int)$item['price']);
 
         try {
             printReceipt(
@@ -208,6 +208,13 @@ function updateItems(): ?array
             $items = json_decode($items, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
             printLine(sprintf('Error occurred: %s', $e->getMessage()));
+            continue;
+        }
+
+        $isInvalidFormat = validateItems($items);
+
+        if ($isInvalidFormat) {
+            printLine($isInvalidFormat);
             continue;
         }
 
@@ -313,7 +320,7 @@ function displayItems(array $items, string $row, int $width): void
     for ($i = 0; $i < $lengthItems; ++$i) {
         $itemName = $items[$i]['name'];
         $lengthSpacing = strlen($itemName) + $lengthRowColumnSpace;
-        $filler = ($width > $lengthSpacing ? $width - $lengthSpacing : 0);
+        $filler = max($width - $lengthSpacing, 0);
 
         if ($lengthSpacing > $width) {
             $nameWidth = $width - $lengthRowColumnSpace;
@@ -328,7 +335,7 @@ function displayItems(array $items, string $row, int $width): void
     printLine($square);
 }
 
-function keepItemOrChange(string $itemName): bool
+function confirmSelectedItem(string $itemName): bool
 {
     while (true) {
         printLine(sprintf('You picked: %s.', $itemName));
@@ -342,11 +349,7 @@ function keepItemOrChange(string $itemName): bool
             continue;
         }
 
-        if ($willKeep === 'y') {
-            return true;
-        }
-
-        return false;
+        return $willKeep === 'y';
     }
 }
 
@@ -360,10 +363,10 @@ function getUserInput(): ?string
 /**
  * @return array{paid:string,change:string}
  */
-function payment(string $itemName, int $itemPrice): array
+function pay(string $itemName, int $itemPrice): array
 {
     $paid = 0;
-    $acceptedAmount = array_flip(['10', '20', '50']);
+    $acceptedAmount = ['10', '20', '50'];
 
     while ($itemPrice > $paid) {
         printLine(sprintf('%s is $%s.', $itemName, $itemPrice));
@@ -372,8 +375,8 @@ function payment(string $itemName, int $itemPrice): array
 
         $amount = getUserInput();
 
-        if (!isset($acceptedAmount[$amount])) {
-            printLine(sprintf('Accepted amounts: %s', implode(', ', array_keys($acceptedAmount))));
+        if (!in_array($amount, $acceptedAmount, true)) {
+            printLine(sprintf('Accepted amounts: %s', implode(', ', $acceptedAmount)));
             continue;
         }
 
@@ -394,18 +397,14 @@ function payment(string $itemName, int $itemPrice): array
  */
 function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): void
 {
-    $error = [];
-    $receiptFields = array_flip(['name', 'cost', 'paid', 'change']);
+    $receiptFields = ['name', 'cost', 'paid', 'change'];
 
-    foreach ($receiptFields as $field => $value) {
-        if (!isset($receipt[$field])) {
-            $error[] = $field;
-        }
-    }
+    $missingFields = array_diff($receiptFields, array_keys($receipt));
 
-    if ($error) {
-        $fields = implode(', ', array_keys(array_flip($error)));
-        throw new RuntimeException(sprintf('Missing receipt fields: %s.', $fields));
+    if ($missingFields) {
+        throw new RuntimeException(
+            sprintf('Missing receipt fields: %s.', implode(', ', $missingFields))
+        );
     }
 
     $receipt = array_intersect_key($receipt, $receiptFields);
@@ -415,17 +414,17 @@ function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): vo
     foreach ($receipt as $field => $value) {
         $repeat = $minDistance;
         $lengthDistanceField = strlen($field) + $minDistance;
-        $lengtFieldDistanceValue = strlen($field) + $minDistance + strlen($value);
+        $lengthFieldDistanceValue = strlen($field) + $minDistance + strlen($value);
 
         if ($lengthDistanceField >= $width) {
-            throw new RuntimeException(sprintf('Not enought room for field\'s `%s` value.', $field));
+            throw new RuntimeException(sprintf('Not enough room for field\'s `%s` value.', $field));
         }
 
-        if ($lengtFieldDistanceValue < $width) {
-            $repeat = $minDistance + ($width - $lengtFieldDistanceValue);
+        if ($lengthFieldDistanceValue < $width) {
+            $repeat = $minDistance + ($width - $lengthFieldDistanceValue);
         }
 
-        if ($lengtFieldDistanceValue > $width) {
+        if ($lengthFieldDistanceValue > $width) {
             $shortenValue = $width - $lengthDistanceField;
             $value = substr($value, 0, $shortenValue);
         }
