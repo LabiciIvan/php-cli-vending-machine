@@ -397,9 +397,9 @@ function pay(string $itemName, int $itemPrice): array
  */
 function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): void
 {
-    $receiptFields = ['name', 'cost', 'paid', 'change'];
+    $requiredKeys = ['name', 'cost', 'paid', 'change'];
 
-    $missingFields = array_diff($receiptFields, array_keys($receipt));
+    $missingFields = array_diff($requiredKeys, array_keys($receipt));
 
     if ($missingFields) {
         throw new RuntimeException(
@@ -407,14 +407,14 @@ function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): vo
         );
     }
 
-    $receipt = array_intersect_key($receipt, $receiptFields);
+    $receipt = array_intersect_key($receipt, array_flip($requiredKeys));
 
     $receiptOutput = '';
 
     foreach ($receipt as $field => $value) {
         $repeat = $minDistance;
         $lengthDistanceField = strlen($field) + $minDistance;
-        $lengthFieldDistanceValue = strlen($field) + $minDistance + strlen($value);
+        $lengthFieldDistanceValue = $lengthDistanceField + strlen($value);
 
         if ($lengthDistanceField >= $width) {
             throw new RuntimeException(sprintf('Not enough room for field\'s `%s` value.', $field));
@@ -425,8 +425,9 @@ function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): vo
         }
 
         if ($lengthFieldDistanceValue > $width) {
-            $shortenValue = $width - $lengthDistanceField;
-            $value = substr($value, 0, $shortenValue);
+            $sizeToSubtract = $width - $lengthDistanceField;
+            $valueSubtracted = substr($value, 0, $sizeToSubtract);
+            $value = rtrim(sprintf('%s%s%s', $valueSubtracted, PHP_EOL, chunk_split(substr_replace($value, '', 0, $sizeToSubtract), $width)), "\n");
         }
 
         $receiptOutput .= sprintf('%s%s%s%s', $field, str_repeat('.', $repeat), $value, PHP_EOL);
