@@ -230,21 +230,27 @@ function updateItems(): ?array
 
 function validateItems(array $items): ?string
 {
+    if (empty($items)) {
+        return 'Provided array is empty.';
+    }
+
     $startLetter = ord('A');
     $endLetter = ord('Z');
 
-    $rows = [];
-
-    $rows = array_flip(array_map('chr', range($startLetter, $endLetter)));
+    $allowedRows = array_map('chr', range($startLetter, $endLetter));
 
     foreach ($items as $row => $columns) {
-        if (!isset($rows[$row])) {
-            return 'Items array should consist of keys with Letters from A-Z and each key should be an array.';
+        if (!in_array($row, $allowedRows)) {
+            return 'The array keys must be letters from A-Z and values of each key to be an array.';
+        }
+
+        if (!is_array($columns) || empty($columns)) {
+            return 'The value to each letter key must be an array with multiple arrays.';
         }
 
         foreach ($columns as  $items) {
             if (!is_array($items) || !isset($items['name'], $items['price'])) {
-                return 'Each column should be an array of items, and each item should have `name` and `price` keys.';
+                return 'Items inside the array of each key must be an array with keys `name` and `price`';
             }
         }
     }
