@@ -433,7 +433,7 @@ function printReceipt(array $receipt, int $width = 30, int $minDistance = 3): vo
         if ($lengthFieldDistanceValue > $width) {
             $sizeToSubtract = $width - $lengthDistanceField;
             $valueSubtracted = substr($value, 0, $sizeToSubtract);
-            $value = rtrim(sprintf('%s%s%s', $valueSubtracted, PHP_EOL, chunk_split(substr_replace($value, '', 0, $sizeToSubtract), $width)), "\n");
+            $value = rtrim(sprintf('%s%s%s', $valueSubtracted, PHP_EOL, chunk_split(substr_replace($value, '', 0, $sizeToSubtract), $width)), PHP_EOL);
         }
 
         $receiptOutput .= sprintf('%s%s%s%s', $field, str_repeat('.', $repeat), $value, PHP_EOL);
